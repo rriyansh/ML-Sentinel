@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt /requirements.txt
+RUN pip install --no-cache-dir -r /requirements.txt
+
+COPY serving /app/serving
+COPY mlflow /app/mlflow
+COPY config /app/config
+COPY src /app/src
+
+ENV MODEL_URI=models:/ml_sentinel_driver/Production
+ENV API_KEY=ml-sentinel-key
+
+EXPOSE 8000
+CMD ["uvicorn", "serving.app:app", "--host", "0.0.0.0", "--port", "8000"]

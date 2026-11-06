@@ -1,0 +1,13 @@
+drift:
+  enabled: true
+  psi_threshold: 0.2
+  ks_threshold: 0.05
+  features:
+    - conv_rate
+    - acc_rate
+    - avg_daily_trips
+  reference_dataset: data/reference/driver_stats.parquet
+  current_dataset: data/current/driver_stats.parquet
+  report_formats:
+    - json
+    - html
