@@ -1,12 +1,9 @@
 from pydantic import BaseModel, Field
 
-
-class DriverFeatures(BaseModel):
-    conv_rate: float = Field(..., ge=0.0, le=1.0, description="Conversion rate")
-    acc_rate: float = Field(..., ge=0.0, le=1.0, description="Acceptance rate")
-    avg_daily_trips: int = Field(..., ge=0, description="Average daily trips")
-
+class PredictionRequest(BaseModel):
+    conv_rate: float = Field(..., ge=0, le=1, description="Conversion rate between 0 and 1")
+    acc_rate: float = Field(..., ge=0, le=1, description="Accuracy rate between 0 and 1")
 
 class PredictionResponse(BaseModel):
-    prediction: list
-    model_version: str = "1.0.0"
+    prediction: list[float]
+    model_version: str
