@@ -1,8 +1,12 @@
 project: ml_sentinel
-registry: data/registry.parquet
+registry: data/registry.db
+provider: local
 online_store:
   type: sqlite
-  path: data/online.db
-offline_store:
-  type: file
-entity_key_serialization_version: 2
+  path: data/online_store.db
+
+mlflow:
+  enabled: true
+  tracking_uri: http://127.0.0.1:5000  # Your MLflow server URI
+  auto_log: true                       # Auto-log feature metadata
+  auto_log_entity_df: true             # Save entity DataFrame for reproducibility
