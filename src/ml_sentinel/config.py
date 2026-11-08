@@ -1,10 +1,16 @@
-import os
 import yaml
+from pathlib import Path
 
-CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "config")
+class Config:
+    def __init__(self):
+        self.base_dir = Path(__file__).parent.parent.parent
+        self._load_configs()
 
+    def _load_configs(self):
+        with open(self.base_dir / "config/drift_config.yaml") as f:
+            self.drift = yaml.safe_load(f)["drift"]
+        with open(self.base_dir / "config/model_promotion_policy.json") as f:
+            import json
+            self.promotion = json.load(f)
 
-def load_config(filename: str) -> dict:
-    path = os.path.join(CONFIG_DIR, filename)
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+config = Config()
