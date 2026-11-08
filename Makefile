@@ -1,20 +1,16 @@
-.PHONY: setup test run train serve drift clean
+.PHONY: setup test run-serving feast-apply
 
 setup:
-	pip install -r requirements.txt
-	pip install pytest pytest-cov
+	pip install -e .[dev]
 
 test:
-	pytest tests/unit tests/integration -v
+	pytest tests/ -v --cov=src
 
-train:
-	python mlflow/train.py
+feast-apply:
+	cd feast_repo && feast apply
 
-serve:
-	uvicorn serving.app:app --reload --host 0.0.0.0 --port 8000
+run-serving:
+	uvicorn serving.app:app --reload
 
-drift:
-	python monitoring/drift_check.py
-
-clean:
-	rm -rf __pycache__ .pytest_cache mlruns logs monitoring_reports
+run-airflow:
+	airflow standalone
