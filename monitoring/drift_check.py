@@ -1,52 +1,29 @@
-import os
-
 import pandas as pd
-import yaml
-from evidently import ColumnMapping
-from evidently.report import Report
-from evidently.metric_preset import DataDriftPreset
+import json
+from evidently.test_suite import TestSuite
+from evidently.tests import TestShareOfDriftedColumns, TestNumberOfDriftedColumns
+from src.ml_sentinel.config import config
+from src.ml_sentinel.logger import setup_logger
 
-CONFIG_PATH = os.getenv("DRIFT_CONFIG_PATH", "config/drift_config.yaml")
+logger = setup_logger("drift_check")
 
+def check_drift(reference_df: pd.DataFrame, current_df: pd.DataFrame) -> bool:
+    features = config.drift["features_to_monitor"]
+    threshold = config.drift["threshold"]
 
-def load_config(path: str = CONFIG_PATH) -> dict:
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
+    suite = TestSuite(tests=[
+        TestShareOfDriftedColumns(lt=threshold),
+        TestNumberOfDriftedColumns(lt=len(features) // 2),
+    ])
 
+    suite.run(reference_data=reference_df[features], current_data=current_df[features])
 
-def check_drift(config_path: str = CONFIG_PATH) -> dict:
-    config = load_config(config_path)
-    drift_cfg = config["drift"]
+    # Save reports
+    suite.save_html("monitoring/drift_report.html")
+    with open("monitoring/drift_summary.json", "w") as f:
+        json.dump(suite.json(), f)
 
-    reference = pd.read_parquet(drift_cfg["reference_dataset"])[drift_cfg["features"]]
-    current = pd.read_parquet(drift_cfg["current_dataset"])[drift_cfg["features"]]
-
-    column_mapping = ColumnMapping(numerical_features=drift_cfg["features"])
-
-    report = Report(metrics=[DataDriftPreset()])
-    report.run(reference_data=reference, current_data=current, column_mapping=column_mapping)
-
-    result = report.as_dict()
-
-    dataset_drift = any(
-        metric.get("value", {}).get("dataset_drift", False)
-        for metric in result.get("metrics", [])
-    )
-
-    output = {
-        "dataset_drift_detected": dataset_drift,
-        "psi_threshold": drift_cfg["psi_threshold"],
-        "ks_threshold": drift_cfg["ks_threshold"],
-        "features": drift_cfg["features"],
-    }
-
-    os.makedirs("monitoring_reports", exist_ok=True)
-    report.save_html("monitoring_reports/drift_report.html")
-
-    print(f"Dataset drift detected: {dataset_drift}")
-    print("Drift report saved to monitoring_reports/drift_report.html")
-    return output
-
-
-if __name__ == "__main__":
-    check_drift()
+    # The suite fails if the share of drifted columns >= threshold
+    drift_detected = not suite.as_dict()["summary"]["all_passed"]
+    logger.info(f"Drift check completed. Drift detected: {drift_detected}")
+    return drift_detected
