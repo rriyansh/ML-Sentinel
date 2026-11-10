@@ -1,13 +1,19 @@
+# Drift detection configuration
 drift:
-  enabled: true
-  psi_threshold: 0.2
-  ks_threshold: 0.05
-  features:
+  threshold: 0.4                # share of drifted columns that triggers retrain
+  statistical_test: psi         # psi | ks | wasserstein
+  p_value_threshold: 0.05
+  features_to_monitor:
     - conv_rate
     - acc_rate
     - avg_daily_trips
-  reference_dataset: data/reference/driver_stats.parquet
-  current_dataset: data/current/driver_stats.parquet
-  report_formats:
-    - json
-    - html
+  excluded_features:
+    - driver_id
+    - event_timestamp
+  min_sample_size: 100
+  report:
+    output_dir: monitoring/reports
+    formats: [html, json]
+  alert:
+    enabled: true
+    cooldown_minutes: 60
