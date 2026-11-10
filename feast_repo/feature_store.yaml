@@ -5,8 +5,11 @@ online_store:
   type: sqlite
   path: data/online_store.db
 
+# Native MLflow integration — every feature retrieval inside an active
+# MLflow run is auto-logged with full lineage (which features, which
+# entity DataFrame, and the digest of the returned values).
 mlflow:
   enabled: true
-  tracking_uri: http://127.0.0.1:5000  # Your MLflow server URI
-  auto_log: true                       # Auto-log feature metadata
-  auto_log_entity_df: true             # Save entity DataFrame for reproducibility
+  tracking_uri: ${MLFLOW_TRACKING_URI:http://127.0.0.1:5000}
+  auto_log: true
+  auto_log_entity_df: true
