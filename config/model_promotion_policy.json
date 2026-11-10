@@ -1,21 +1,12 @@
 {
-  "promotion_policy": {
-    "strategy": "champion_challenger",
-    "models": {
-      "champion": "ml_sentinel_driver",
-      "challenger": "ml_sentinel_driver_challenger"
-    },
-    "criteria": {
-      "accuracy_improvement_min": 0.01,
-      "auc_improvement_min": 0.005,
-      "drift_violation_max": 0.2
-    },
-    "rollback_on_failure": true,
-    "shadow_deployment_enabled": true
+  "description": "Champion/Challenger promotion policy. Challenger must beat champion for every constraint.",
+  "min_primary_metric_improvement": 0.01,
+  "primary_metric": "f1",
+  "max_secondary_metric_drops": {
+    "precision": 0.02,
+    "recall": 0.0
   },
-  "registry": {
-    "tracking_uri": "http://localhost:5000",
-    "model_name": "ml_sentinel_driver",
-    "stages": ["Staging", "Production", "Archived"]
-  }
+  "require_data_quality": true,
+  "min_training_samples": 500,
+  "block_promotion_if_drift": false
 }
