@@ -1,11 +1,34 @@
+"""Drift detection tests (Evidently mocked lightly via real computation)."""
+
+from __future__ import annotations
+
+import os
+
 import pandas as pd
-from monitoring.drift_check import check_drift
+import pytest
 
-def test_no_drift():
-    df = pd.DataFrame({"conv_rate": [0.1, 0.2], "acc_rate": [0.8, 0.9], "avg_daily_trips": [10, 20]})
-    assert check_drift(df, df) is False
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_drift.db")
+os.environ.setdefault("DRIFT_REPORT_DIR", "/tmp/drift_reports")
 
-def test_drift():
-    ref = pd.DataFrame({"conv_rate": [0.1, 0.2], "acc_rate": [0.8, 0.9], "avg_daily_trips": [10, 20]})
-    curr = pd.DataFrame({"conv_rate": [0.9, 0.95], "acc_rate": [0.1, 0.2], "avg_daily_trips": [100, 200]})
-    assert check_drift(ref, curr) is True
+from monitoring import drift_check  # noqa: E402
+
+
+def test_no_drift_returns_false(reference_df):
+    detected = drift_check.check_drift(reference_df, reference_df)
+    assert detected is False
+
+
+def test_significant_drift_returns_true(reference_df, drifted_df):
+    detected = drift_check.check_drift(reference_df, drifted_df)
+    assert detected is True
+
+
+def test_empty_data_raises(reference_df):
+    with pytest.raises(ValueError, match="empty"):
+        drift_check.check_drift(reference_df, pd.DataFrame())
+
+
+def test_too_small_data_raises(reference_df):
+    small = reference_df.head(5)
+    with pytest.raises(ValueError, match="too small"):
+        drift_check.check_drift(reference_df, small)
