@@ -1,13 +1,31 @@
-FROM apache/airflow:2.9.3-python3.11
+# syntax=docker/dockerfile:1.7
+FROM apache/airflow:2.10.2-python3.10
 
 USER root
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+        build-essential libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
 USER airflow
-COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
 
-WORKDIR /opt/airflow/dags
-COPY airflow/dags /opt/airflow/dags
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Copy project code so DAGs can import it
+COPY --chown=airflow:root src/ /opt/airflow/src/
+COPY --chown=airflow:root serving/ /opt/airflow/serving/
+COPY --chown=airflow:root monitoring/ /opt/airflow/monitoring/
+COPY --chown=airflow:root mlflow/ /opt/airflow/mlflow/
+COPY --chown=airflow:root feast_repo/ /opt/airflow/feast_repo/
+COPY --chown=airflow:root config/ /opt/airflow/config/
+COPY --chown=airflow:root airflow/dags/ /opt/airflow/dags/
+COPY --chown=airflow:root pyproject.toml /opt/airflow/
+
+WORKDIR /opt/airflow
+ENV PYTHONPATH=/opt/airflow/src:/opt/airflow
+
+RUN pip install --no-cache-dir --no-deps -e /opt/airflow
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 \
+    CMD curl -fsS http://localhost:8080/health || exit 1
