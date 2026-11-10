@@ -1,6 +1,45 @@
-FROM python:3.10-slim
-WORKDIR /app
+# syntax=docker/dockerfile:1.7
+FROM python:3.10-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "mlflow/train.py"]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --prefix=/install -r requirements.txt
+
+FROM python:3.10-slim AS runtime
+
+ARG APP_USER=mlsentinel
+ARG APP_UID=10001
+ARG APP_GID=10001
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        tini curl libpq5 ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid ${APP_GID} ${APP_USER} \
+    && useradd --uid ${APP_UID} --gid ${APP_GID} --create-home ${APP_USER}
+
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+COPY --chown=${APP_USER}:${APP_USER} src/ ./src/
+COPY --chown=${APP_USER}:${APP_USER} mlflow/ ./mlflow/
+COPY --chown=${APP_USER}:${APP_USER} monitoring/ ./monitoring/
+COPY --chown=${APP_USER}:${APP_USER} feast_repo/ ./feast_repo/
+COPY --chown=${APP_USER}:${APP_USER} scripts/ ./scripts/
+COPY --chown=${APP_USER}:${APP_USER} config/ ./config/
+COPY --chown=${APP_USER}:${APP_USER} pyproject.toml README.md ./
+
+RUN pip install --no-cache-dir --no-deps -e .
+
+USER ${APP_USER}
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "-m", "mlflow.train"]
