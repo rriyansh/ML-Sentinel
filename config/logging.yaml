@@ -1,12 +1,42 @@
 version: 1
+disable_existing_loggers: false
+
 formatters:
+  json:
+    format: "%(message)s"        # structlog handles the JSON
   standard:
-    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+
 handlers:
-  console:
+  console_json:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+    level: INFO
+  console_plain:
     class: logging.StreamHandler
     formatter: standard
-    level: INFO
+    stream: ext://sys.stdout
+    level: DEBUG
+
 root:
   level: INFO
-  handlers: [console]
+  handlers: [console_json]
+
+loggers:
+  uvicorn:
+    level: INFO
+    handlers: [console_json]
+    propagate: false
+  mlflow:
+    level: WARNING
+    handlers: [console_json]
+    propagate: false
+  feast:
+    level: INFO
+    handlers: [console_json]
+    propagate: false
+  evidently:
+    level: INFO
+    handlers: [console_json]
+    propagate: false
