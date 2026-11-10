@@ -1,48 +1,39 @@
-import os
-
 import mlflow.pyfunc
-from fastapi import FastAPI, HTTPException, Security, status
-from fastapi.security import APIKeyHeader
+from fastapi import FastAPI, HTTPException
+from serving.schemas import PredictionRequest, PredictionResponse
+from src.ml_sentinel.logger import setup_logger
 
-from schemas import DriverFeatures, PredictionResponse
-
-MODEL_URI = os.getenv("MODEL_URI", "models:/ml_sentinel_driver/Production")
-API_KEY = os.getenv("API_KEY", "ml-sentinel-key")
-
-app = FastAPI(title="ML-Sentinel Serving", version="1.0.0")
-
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+logger = setup_logger("serving")
+app = FastAPI(title="ML-Sentinel Serving API")
 
 model = None
-
-
-def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key != API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key",
-        )
-    return api_key
-
+model_version = "not_loaded"
 
 @app.on_event("startup")
-def load_model() -> None:
-    global model
-    model = mlflow.pyfunc.load_model(MODEL_URI)
+async def load_model():
+    global model, model_version
+    try:
+        # Load the Production model from the registry
+        model = mlflow.pyfunc.load_model(model_uri="models:/MLSentinelModel/Production")
+        model_version = "Production"
+        logger.info("Production model loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to load model: {e}")
 
+@app.get("/health/liveness")
+def liveness():
+    return {"status": "alive"}
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "model_loaded": model is not None}
-
-
-@app.post("/predict", response_model=PredictionResponse, dependencies=[Security(verify_api_key)])
-def predict(features: DriverFeatures):
+@app.get("/health/readiness")
+def readiness():
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
+    return {"status": "ready", "model_version": model_version}
 
-    import pandas as pd
-
-    df = pd.DataFrame([features.model_dump()])
-    prediction = model.predict(df)
-    return PredictionResponse(prediction=prediction.tolist())
+@app.post("/predict", response_model=PredictionResponse)
+def predict(request: PredictionRequest):
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+    data = [[request.conv_rate, request.acc_rate]]
+    prediction = model.predict(data)
+    return PredictionResponse(prediction=prediction.tolist(), model_version=model_version)

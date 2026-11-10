@@ -1,56 +1,9 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-env/
-.venv/
-.venv/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
-# MLflow / Feast artifacts
-mlruns/
-data/registry.parquet
-data/online.db
-
-# Data
-data/current/*.parquet
-
-# Environment
+*.pyc
 .env
-.env.*
+mlruns/
+feast_repo/data/registry.db
+feast_repo/data/online_store.db
+monitoring/drift_report.html
+monitoring/drift_summary.json
+.pytest_cache/
