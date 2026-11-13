@@ -1,64 +1,38 @@
 # syntax=docker/dockerfile:1.7
-# ──────────────────────────────────────────────────────────────
-# ML-Sentinel Serving image (multi-stage, non-root, hardened)
-# ──────────────────────────────────────────────────────────────
-
 ARG PYTHON_VERSION=3.10
 
-# ── Stage 1: builder ─────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim AS builder
-
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        libpq-dev \
+        build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /build
 COPY requirements.txt .
-
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefix=/install -r requirements.txt
 
-# ── Stage 2: runtime ─────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim AS runtime
-
-ARG APP_USER=mlsentinel
-ARG APP_UID=10001
-ARG APP_GID=10001
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
+ARG APP_USER=mlsentinel APP_UID=10001 APP_GID=10001
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PATH="/home/${APP_USER}/.local/bin:${PATH}"
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        tini \
-        curl \
-        libpq5 \
-        ca-certificates \
+        tini curl libpq5 ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid ${APP_GID} ${APP_USER} \
     && useradd --uid ${APP_UID} --gid ${APP_GID} --create-home --shell /bin/bash ${APP_USER}
 
 COPY --from=builder /install /usr/local
-
 WORKDIR /app
 COPY --chown=${APP_USER}:${APP_USER} src/ ./src/
 COPY --chown=${APP_USER}:${APP_USER} serving/ ./serving/
+COPY --chown=${APP_USER}:${APP_USER} monitoring/ ./monitoring/
 COPY --chown=${APP_USER}:${APP_USER} config/ ./config/
 COPY --chown=${APP_USER}:${APP_USER} pyproject.toml README.md ./
-
 RUN pip install --no-cache-dir --no-deps -e .
 
 USER ${APP_USER}
 EXPOSE 8000
-
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/health/liveness || exit 1
-
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["uvicorn", "serving.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
