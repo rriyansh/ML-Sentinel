@@ -1,0 +1,46 @@
+{
+  "title": "ML-Sentinel Overview",
+  "uid": "ml-sentinel-01",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Model Loaded",
+      "targets": [{"expr": "ml_sentinel_model_loaded", "legendFormat": "loaded"}],
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "RPS (by status)",
+      "targets": [
+        {"expr": "sum by (status) (rate(ml_sentinel_http_requests_total[1m]))", "legendFormat": "{{status}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "P95 Latency",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(ml_sentinel_http_request_duration_seconds_bucket[5m])) by (le))"}
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Predictions",
+      "targets": [
+        {"expr": "sum by (status) (rate(ml_sentinel_predictions_total[1m]))", "legendFormat": "{{status}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Drift Events",
+      "targets": [
+        {"expr": "sum by (detected) (rate(ml_sentinel_drift_events_total[5m]))", "legendFormat": "detected={{detected}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    }
+  ]
+}
