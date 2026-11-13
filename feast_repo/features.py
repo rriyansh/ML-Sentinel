@@ -1,10 +1,4 @@
-"""
-Feast feature definitions for ML-Sentinel.
-
-A single ``driver`` entity with hourly aggregated statistics serves as
-the toy domain. Replace with your own entities / feature views when
-adapting the platform.
-"""
+"""Feast feature definitions."""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -13,14 +7,12 @@ from feast import Entity, FeatureView, Field, FileSource
 from feast.types import Float32, Int64
 from feast.value_type import ValueType
 
-# ── Entity ─────────────────────────────────────────────────────────
 driver = Entity(
     name="driver_id",
     value_type=ValueType.INT64,
-    description="Unique identifier for a driver (or user/customer in your domain)",
+    description="Driver identifier",
 )
 
-# ── Data source ────────────────────────────────────────────────────
 driver_stats_source = FileSource(
     name="driver_stats_source",
     path="data/driver_stats.parquet",
@@ -28,7 +20,6 @@ driver_stats_source = FileSource(
     created_timestamp_column="created_timestamp",
 )
 
-# ── Feature view ───────────────────────────────────────────────────
 driver_hourly_stats = FeatureView(
     name="driver_hourly_stats",
     entities=[driver],
