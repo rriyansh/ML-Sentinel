@@ -1,0 +1,10 @@
+apiVersion: v2
+name: ml-sentinel
+description: Enterprise MLOps platform with drift detection, explainability and fairness
+type: application
+version: 3.0.0
+appVersion: "3.0.0"
+maintainers:
+  - name: ML-Sentinel Team
+    email: platform@ml-sentinel.dev
+keywords: [mlops, drift-detection, explainability, fairness, model-serving]
