@@ -1,5 +1,4 @@
 """Shared pytest fixtures."""
-
 from __future__ import annotations
 
 import os
@@ -7,13 +6,14 @@ import os
 import pandas as pd
 import pytest
 
-# Use SQLite for tests to avoid needing a running Postgres
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("SECRET_KEY", "test-secret-key-with-enough-entropy-123")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-with-enough-entropy-123456")
 os.environ.setdefault("API_KEYS", "test-key-1,test-key-2")
+os.environ.setdefault("ENCRYPTION_KEY", "kNfK8XbRw3h9nPZQhG7jCkYe0gY2mAVa6IioK5zPq4U=")
 os.environ.setdefault("MLFLOW_TRACKING_URI", "file:///tmp/mlruns")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
+os.environ.setdefault("DRIFT_REPORT_DIR", "/tmp/drift_reports")
 
 
 @pytest.fixture(scope="session")
