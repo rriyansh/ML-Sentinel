@@ -1,0 +1,97 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/your-org/ml-sentinel-serving
+  tag: "3.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile: { type: RuntimeDefault }
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities: { drop: ["ALL"] }
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: ml-sentinel.local
+      paths: [{ path: "/", pathType: Prefix }]
+  tls: []
+
+resources:
+  requests: { cpu: 250m, memory: 512Mi }
+  limits:   { cpu: 1000m, memory: 1Gi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+  allowIngressFromNamespaces: [ingress-nginx]
+  egress:
+    - to: [{ namespaceSelector: { matchLabels: { name: ml-sentinel } } }]
+      ports: [{ port: 5432, protocol: TCP }, { port: 6379, protocol: TCP }, { port: 5000, protocol: TCP }]
+
+livenessProbe:
+  httpGet: { path: /health/liveness, port: 8000 }
+  initialDelaySeconds: 30
+  periodSeconds: 15
+readinessProbe:
+  httpGet: { path: /health/readiness, port: 8000 }
+  initialDelaySeconds: 30
+  periodSeconds: 10
+startupProbe:
+  httpGet: { path: /health/startup, port: 8000 }
+  failureThreshold: 30
+  periodSeconds: 5
+
+env:
+  ENVIRONMENT: production
+  MLFLOW_MODEL_NAME: MLSentinelModel
+  OTEL_SERVICE_NAME: ml-sentinel-serving
+  PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+  DRIFT_REPORT_DIR: /app/monitoring/reports
+
+secrets:
+  # Values below should be provided via External Secrets / SealedSecrets in prod.
+  # This template creates a Secret only if `create=true`.
+  create: false
+  secretKey: ""
+  encryptionKey: ""
+  apiKeys: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
