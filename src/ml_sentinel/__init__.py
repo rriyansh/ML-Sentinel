@@ -1,4 +1,4 @@
-"""ML-Sentinel: production-grade MLOps pipeline library."""
+"""ML-Sentinel: enterprise MLOps platform."""
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __all__ = ["__version__"]
