@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM python:3.10-slim AS builder
+FROM python:3.15-slim AS builder
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -7,7 +7,7 @@ WORKDIR /build
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip pip install --prefix=/install -r requirements.txt
 
-FROM python:3.10-slim AS runtime
+FROM python:3.15-slim AS runtime
 ARG APP_USER=mlsentinel APP_UID=10001 APP_GID=10001
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl libpq5 ca-certificates \
