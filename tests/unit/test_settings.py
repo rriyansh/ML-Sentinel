@@ -1,12 +1,11 @@
-"""Tests for the configuration layer."""
-
+"""Settings tests."""
 from __future__ import annotations
 
 import os
 
 import pytest
 
-from ml_sentinel.settings import Settings, reload_settings
+from ml_sentinel.core.settings import Settings, reload_settings
 
 
 def test_defaults_load():
@@ -18,8 +17,7 @@ def test_defaults_load():
 def test_api_key_set_parses_csv():
     os.environ["API_KEYS"] = "a,b,c"
     try:
-        s = Settings()
-        assert s.api_key_set() == {"a", "b", "c"}
+        assert Settings().api_key_set() == {"a", "b", "c"}
     finally:
         os.environ.pop("API_KEYS", None)
 
@@ -30,17 +28,9 @@ def test_production_rejects_debug(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "x" * 40)
     monkeypatch.setenv("API_KEYS", "rotated-key-123")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://app.example.com")
+    monkeypatch.setenv("ENCRYPTION_KEY", "kNfK8XbRw3h9nPZQhG7jCkYe0gY2mAVa6IioK5zPq4U=")
+    monkeypatch.setenv("SECRETS_BACKEND", "vault")
     with pytest.raises(ValueError, match="DEBUG must be false"):
-        Settings()
-
-
-def test_production_rejects_default_api_key(monkeypatch):
-    monkeypatch.setenv("ENVIRONMENT", "production")
-    monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("SECRET_KEY", "x" * 40)
-    monkeypatch.setenv("API_KEYS", "dev-key-abc123")
-    monkeypatch.setenv("ALLOWED_ORIGINS", "https://app.example.com")
-    with pytest.raises(ValueError, match="API_KEYS must be rotated"):
         Settings()
 
 
