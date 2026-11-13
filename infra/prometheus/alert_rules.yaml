@@ -1,0 +1,46 @@
+groups:
+  - name: ml-sentinel
+    interval: 30s
+    rules:
+      - alert: ModelNotLoaded
+        expr: ml_sentinel_model_loaded == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "ML-Sentinel model not loaded"
+          description: "No Production model has been loaded for 5 minutes."
+
+      - alert: HighErrorRate
+        expr: sum(rate(ml_sentinel_http_requests_total{status=~"5.."}[5m])) / sum(rate(ml_sentinel_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Error rate above 5%"
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(ml_sentinel_http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "P95 latency > 1s"
+
+      - alert: FrequentDrift
+        expr: increase(ml_sentinel_drift_events_total{detected="true"}[1h]) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Frequent drift detected"
+
+      - alert: CircuitOpen
+        expr: ml_sentinel_circuit_state > 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.dependency }}"
+
+      - alert: RateLimitSpike
+        expr: rate(ml_sentinel_rate_limited_total[5m]) > 10
+        for: 5m
+        labels: { severity: info }
+        annotations:
+          summary: "Rate limit rejections spiking"
