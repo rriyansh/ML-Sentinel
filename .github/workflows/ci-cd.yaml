@@ -1,15 +1,10 @@
 name: CI/CD
-
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
+  push: { branches: [main, develop] }
+  pull_request: { branches: [main] }
 permissions:
   contents: read
   packages: write
-
 env:
   PYTHON_VERSION: "3.10"
   REGISTRY: ghcr.io
@@ -17,80 +12,65 @@ env:
 
 jobs:
   lint:
-    name: Lint & type-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: mypy src serving monitoring mlflow
+      - run: import-linter lint || true
 
   test:
-    name: Tests + coverage
-    runs-on: ubuntu-latest
     needs: lint
+    runs-on: ubuntu-latest
     env:
       ENVIRONMENT: development
       SECRET_KEY: ci-secret-key-with-enough-entropy-1234567890
+      ENCRYPTION_KEY: kNfK8XbRw3h9nPZQhG7jCkYe0gY2mAVa6IioK5zPq4U=
       API_KEYS: ci-key-1,ci-key-2
       MLFLOW_TRACKING_URI: file:///tmp/mlruns
       DATABASE_URL: sqlite:///./ci_test.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -v
       - uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: htmlcov/
+        with: { name: coverage, path: htmlcov/ }
 
   security:
-    name: Security scan
-    runs-on: ubuntu-latest
     needs: lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
       - run: pip install -e ".[dev]"
       - run: bandit -r src serving monitoring mlflow -ll -f json -o bandit.json
       - run: pip-audit -r requirements.txt --strict
+      - run: |
+          pip install cyclonedx-bom
+          cyclonedx-py requirements -i requirements.txt -o sbom.json
       - uses: actions/upload-artifact@v4
         if: always()
-        with:
-          name: bandit-report
-          path: bandit.json
+        with: { name: security-artifacts, path: "bandit.json\nsbom.json" }
 
   docker-build:
-    name: Build & push images
-    runs-on: ubuntu-latest
     needs: [test, security]
     if: github.event_name == 'push'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push serving
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.serving
@@ -102,32 +82,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
-
-      - name: Build & push train
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.train
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-train:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-train:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build & push airflow
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.airflow
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-airflow:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-airflow:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Trivy scan (serving image)
+      - name: Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-serving:${{ github.sha }}
