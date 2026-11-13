@@ -1,12 +1,17 @@
 {
-  "description": "Champion/Challenger promotion policy. Challenger must beat champion for every constraint.",
-  "min_primary_metric_improvement": 0.01,
+  "description": "Champion/Challenger promotion policy",
   "primary_metric": "f1",
+  "min_primary_metric_improvement": 0.01,
   "max_secondary_metric_drops": {
     "precision": 0.02,
     "recall": 0.0
   },
   "require_data_quality": true,
   "min_training_samples": 500,
-  "block_promotion_if_drift": false
+  "fairness": {
+    "enabled": true,
+    "attribute": "driver_id",
+    "max_demographic_parity_diff": 0.1
+  },
+  "require_model_card": true
 }
