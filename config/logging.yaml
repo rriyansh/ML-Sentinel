@@ -1,28 +1,19 @@
 version: 1
 disable_existing_loggers: false
-
 formatters:
   json:
-    format: "%(message)s"        # structlog handles the JSON
+    format: "%(message)s"
   standard:
     format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-
 handlers:
   console_json:
     class: logging.StreamHandler
     formatter: json
     stream: ext://sys.stdout
     level: INFO
-  console_plain:
-    class: logging.StreamHandler
-    formatter: standard
-    stream: ext://sys.stdout
-    level: DEBUG
-
 root:
   level: INFO
   handlers: [console_json]
-
 loggers:
   uvicorn:
     level: INFO
@@ -38,5 +29,9 @@ loggers:
     propagate: false
   evidently:
     level: INFO
+    handlers: [console_json]
+    propagate: false
+  opentelemetry:
+    level: WARNING
     handlers: [console_json]
     propagate: false
