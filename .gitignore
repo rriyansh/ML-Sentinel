@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,46 +10,39 @@ dist/
 venv/
 .venv/
 env/
-
-# Testing
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .mypy_cache/
 .ruff_cache/
-
-# Environment
+.hypothesis/
+.import_linter_cache/
 .env
-.env.local
-.env.*.local
-
-# ML artifacts
+.env.*
+!.env.example
 mlruns/
 mlartifacts/
 feast_repo/data/*.db
 feast_repo/data/*.parquet
 monitoring/reports/
-*.parquet
-*.pkl
-*.joblib
-
-# Logs
+data/reference/*.parquet
+data/current/*.parquet
 *.log
 logs/
-
-# IDE
 .idea/
 .vscode/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Docker
 *.pid
-
-# Security
 *.pem
 *.key
 secrets/
+sbom.json
+bandit.json
+pip-audit.json
+.trivy/
+.terraform/
+*.tfstate
+*.tfstate.backup
