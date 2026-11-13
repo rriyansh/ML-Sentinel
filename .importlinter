@@ -1,0 +1,10 @@
+[importlinter]
+root_package = ml_sentinel
+
+[importlinter:contract:hexagonal]
+name = Hexagonal architecture
+type = layers
+layers =
+    ml_sentinel.infrastructure
+    ml_sentinel.domain
+    ml_sentinel.core
