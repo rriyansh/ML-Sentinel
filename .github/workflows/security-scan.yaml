@@ -1,49 +1,92 @@
-name: Scheduled Security Scan
-
+name: CI/CD
 on:
-  schedule:
-    - cron: "0 3 * * *"    # daily at 03:00 UTC
-  workflow_dispatch:
-
+  push: { branches: [main, develop] }
+  pull_request: { branches: [main] }
 permissions:
   contents: read
-  security-events: write
+  packages: write
+env:
+  PYTHON_VERSION: "3.10"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  audit:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src serving monitoring mlflow
+      - run: import-linter lint || true
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: development
+      SECRET_KEY: ci-secret-key-with-enough-entropy-1234567890
+      ENCRYPTION_KEY: kNfK8XbRw3h9nPZQhG7jCkYe0gY2mAVa6IioK5zPq4U=
+      API_KEYS: ci-key-1,ci-key-2
+      MLFLOW_TRACKING_URI: file:///tmp/mlruns
+      DATABASE_URL: sqlite:///./ci_test.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v
+      - uses: actions/upload-artifact@v4
+        with: { name: coverage, path: htmlcov/ }
+
+  security:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - run: pip install -e ".[dev]"
+      - run: bandit -r src serving monitoring mlflow -ll -f json -o bandit.json
+      - run: pip-audit -r requirements.txt --strict
+      - run: |
+          pip install cyclonedx-bom
+          cyclonedx-py requirements -i requirements.txt -o sbom.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: security-artifacts, path: "bandit.json\nsbom.json" }
+
+  docker-build:
+    needs: [test, security]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          python-version: "3.10"
-          cache: pip
-
-      - name: Install
-        run: pip install -e ".[dev]"
-
-      - name: pip-audit (strict, JSON)
-        run: pip-audit -r requirements.txt --strict --format json > pip-audit.json || true
-
-      - name: bandit (SARIF)
-        run: |
-          pip install bandit[sarif]
-          bandit -r src serving monitoring mlflow -ll -f sarif -o bandit.sarif || true
-
-      - name: Upload SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v3
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
         with:
-          sarif_file: bandit.sarif
-
-      - name: Fail on high/critical pip-audit findings
-        run: |
-          python - <<'PY'
-          import json, sys
-          data = json.load(open("pip-audit.json"))
-          vulns = data.get("dependencies", [])
-          bad = [v for v in vulns if any(x.get("severity") in {"high", "critical"} for x in v.get("vulns", []))]
-          if bad:
-              print("High/critical vulnerabilities found:", bad)
-              sys.exit(1)
-          PY
+          context: .
+          file: docker/Dockerfile.serving
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-serving:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-serving:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+      - name: Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-serving:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
