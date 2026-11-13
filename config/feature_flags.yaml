@@ -1,0 +1,16 @@
+flags:
+  enable_explain_endpoint:
+    enabled: true
+    description: "Expose /api/v1/explain endpoint"
+  enable_fairness_check:
+    enabled: true
+    description: "Run fairness metrics during quality gate"
+  enforce_circuit_breaker:
+    enabled: true
+    description: "Fail-fast on dependency outages"
+  require_oidc_in_production:
+    enabled: true
+    description: "Reject plain API-key auth when ENVIRONMENT=production"
+  block_promotion_on_drift:
+    enabled: false
+    description: "Never promote when drift is detected"
